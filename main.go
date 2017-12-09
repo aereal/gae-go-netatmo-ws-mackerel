@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"time"
 
 	netatmo "github.com/aereal/netatmo-api-go"
@@ -100,15 +99,24 @@ func fetchWeatherStationMetrics(ctx context.Context) ([]*mkr.MetricValue, error)
 }
 
 func float64of(value interface{}) (float64, bool) {
-	if v, ok := value.(reflect.Value); ok {
-		switch v.Kind() {
-		case reflect.Float32, reflect.Float64:
-			return v.Float(), true
-		case reflect.Int32, reflect.Int64:
-			return float64(v.Int()), true
-		default:
-			return 0, false
-		}
+	switch t := value.(type) {
+	case float64:
+		return t, true
+	case *float64:
+		return *t, true
+	case float32:
+		return float64(t), true
+	case *float32:
+		return float64(*t), true
+	case int32:
+		return float64(t), true
+	case *int32:
+		return float64(*t), true
+	case int64:
+		return float64(t), true
+	case *int64:
+		return float64(*t), true
+	default:
+		return 0, false
 	}
-	return 0, false
 }
