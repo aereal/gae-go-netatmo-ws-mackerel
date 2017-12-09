@@ -42,7 +42,7 @@ func init() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	metricsValues, err := fetchWeatherStationMetrics(ctx)
+	metricsValues, err := fetchWeatherStationMetrics(ctx, time.Duration(1)*time.Minute)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
@@ -50,7 +50,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%#v", metricsValues)
 }
 
-func fetchWeatherStationMetrics(ctx context.Context) ([]*mkr.MetricValue, error) {
+func fetchWeatherStationMetrics(ctx context.Context, resolution time.Duration) ([]*mkr.MetricValue, error) {
+	resolutionInt := int64(resolution / time.Second)
 	netatmoClient, err := netatmo.NewClientWithContext(ctx, netatmo.Config{
 		ClientID:     netatmoAppID,
 		ClientSecret: netatmoAppSecret,
@@ -65,6 +66,9 @@ func fetchWeatherStationMetrics(ctx context.Context) ([]*mkr.MetricValue, error)
 	for _, station := range dc.Stations() {
 		for _, module := range station.Modules() {
 			infoEpoch, info := module.Info()
+			if resolution != time.Duration(0) {
+				infoEpoch = infoEpoch / resolutionInt * resolutionInt
+			}
 			infoTs := time.Unix(infoEpoch, 0)
 			for name, value := range info {
 				log.Debugf(ctx, "Timestamp:%s Station:%s Module:%s Name:%s Value:%#v\n", infoTs, module.StationName, module.ModuleName, name, value)
@@ -80,6 +84,9 @@ func fetchWeatherStationMetrics(ctx context.Context) ([]*mkr.MetricValue, error)
 			}
 
 			dataEpoch, data := module.Data()
+			if resolution != time.Duration(0) {
+				dataEpoch = dataEpoch / resolutionInt * resolutionInt
+			}
 			dataTs := time.Unix(dataEpoch, 0)
 			for name, value := range data {
 				log.Debugf(ctx, "Timestamp:%s Station:%s Module:%s Name:%s Value:%#v\n", dataTs, module.StationName, module.ModuleName, name, value)
