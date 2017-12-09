@@ -6,11 +6,12 @@ import (
 	"os"
 	"time"
 
+	mkr "github.com/aereal/mackerel-client-go"
 	netatmo "github.com/aereal/netatmo-api-go"
-	mkr "github.com/mackerelio/mackerel-client-go"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 )
 
 const (
@@ -19,10 +20,12 @@ const (
 )
 
 var (
-	netatmoEmail     = os.Getenv("NETATMO_EMAIL")
-	netatmoPassword  = os.Getenv("NETATMO_PASSWORD")
-	netatmoAppID     = os.Getenv("NETATMO_APP_ID")
-	netatmoAppSecret = os.Getenv("NETATMO_APP_SECRET")
+	netatmoEmail        = os.Getenv("NETATMO_EMAIL")
+	netatmoPassword     = os.Getenv("NETATMO_PASSWORD")
+	netatmoAppID        = os.Getenv("NETATMO_APP_ID")
+	netatmoAppSecret    = os.Getenv("NETATMO_APP_SECRET")
+	mackerelAPIKey      = os.Getenv("MACKEREL_APIKEY")
+	mackerelServiceName = os.Getenv("MACKEREL_SERVICE_NAME")
 )
 
 var metricPrefixes = map[string]string{
@@ -47,7 +50,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
 	}
-	fmt.Fprintf(w, "%#v", metricsValues)
+	if r.Method == http.MethodGet {
+		for _, value := range metricsValues {
+			fmt.Fprintf(w, "%#v\n", value)
+		}
+	} else if r.Method == http.MethodPost {
+		mackerelClient := mkr.NewClient(mackerelAPIKey)
+		mackerelClient.HTTPClient = urlfetch.Client(ctx)
+		err = mackerelClient.PostServiceMetricValues(mackerelServiceName, metricsValues)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
+		}
+		fmt.Fprintf(w, "done")
+	}
 }
 
 func fetchWeatherStationMetrics(ctx context.Context, resolution time.Duration) ([]*mkr.MetricValue, error) {
