@@ -1,0 +1,7 @@
+---
+
+cron:
+  -
+    description: Post metrics to Mackerel
+    url: /metrics
+    schedule: every 10 mins
