@@ -41,6 +41,7 @@ var metricPrefixes = map[string]string{
 
 func init() {
 	http.HandleFunc("/metrics", handler)
+	http.HandleFunc("/postMetrics", handlePost)
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -50,20 +51,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
 	}
-	if r.Method == http.MethodGet {
-		for _, value := range metricsValues {
-			fmt.Fprintf(w, "%#v\n", value)
-		}
-	} else if r.Method == http.MethodPost {
-		mackerelClient := mkr.NewClient(mackerelAPIKey)
-		mackerelClient.HTTPClient = urlfetch.Client(ctx)
-		err = mackerelClient.PostServiceMetricValues(mackerelServiceName, metricsValues)
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
-		}
-		fmt.Fprintf(w, "done")
+	for _, value := range metricsValues {
+		fmt.Fprintf(w, "%#v\n", value)
 	}
+}
+func handlePost(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	metricsValues, err := fetchWeatherStationMetrics(ctx, time.Duration(1)*time.Minute)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
+	}
+	mackerelClient := mkr.NewClient(mackerelAPIKey)
+	mackerelClient.HTTPClient = urlfetch.Client(ctx)
+	err = mackerelClient.PostServiceMetricValues(mackerelServiceName, metricsValues)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Failed: (%s) %#v", err, err)
+	}
+	fmt.Fprintf(w, "done")
 }
 
 func fetchWeatherStationMetrics(ctx context.Context, resolution time.Duration) ([]*mkr.MetricValue, error) {
