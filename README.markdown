@@ -26,6 +26,12 @@ gcloud app deploy app.yaml
 gcloud app deploy cron.yaml
 ```
 
+## License
+
+MIT License
+
+(original implementations written by itchyny, thanks)
+
 [Mackerel]: https://mackerel.io/
 [Netatmo Weather Station]: https://www.netatmo.com/product/weather/weatherstation
 [GAE/Go]: https://cloud.google.com/appengine/docs/standard/go/
